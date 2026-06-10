@@ -1,0 +1,8 @@
+{
+  "name": "pr-review",
+  "description": "Review GitHub PRs awaiting my review: list them as a table, analyze with full local context, and submit approve/request-changes/comment after explicit confirmation.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Ziv Gabel"
+  }
+}

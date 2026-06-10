@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "claude-skills",
+  "description": "Ziv's personal Claude Code skills",
+  "owner": {
+    "name": "Ziv Gabel"
+  },
+  "plugins": [
+    {
+      "name": "pr-review",
+      "description": "Review GitHub PRs awaiting my review: list them as a table, analyze with full local context, and submit approve/request-changes/comment after explicit confirmation.",
+      "source": "./pr-review",
+      "category": "development",
+      "version": "1.0.0"
+    }
+  ]
+}
