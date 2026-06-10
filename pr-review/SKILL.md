@@ -71,7 +71,7 @@ Present one consolidated report to the user, grouped per PR, findings ordered by
 
 ### 6. Decide and submit (only after explicit confirmation)
 
-For each reviewed PR, AskUserQuestion: **Approve / Request changes / Comment / Skip**.
+For each reviewed PR, AskUserQuestion: **Approve / Request changes / Comment / Skip**. The question text MUST carry enough context to decide without scrolling back: repo and PR number, who opened it, prior review state (e.g. "you approved on <date>" / "you requested changes"), whether and how follow-ups were answered, CI state, and the recommended action with a one-line reason. Put the recommended action first, labeled "(Recommended)".
 
 For any non-Skip choice: draft the review body in markdown (short summary + findings with `file:line` references), show it to the user, and only after they confirm the text, submit from the repo dir:
 
