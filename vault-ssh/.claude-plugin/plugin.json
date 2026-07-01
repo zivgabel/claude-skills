@@ -1,0 +1,8 @@
+{
+  "name": "vault-ssh",
+  "description": "Sign a local SSH key with HashiCorp Vault's SSH CA to mint a short-lived (1 day) SSH certificate. Reads credentials from ~/.vaultrc, auto-detects the key (suggesting the default) and signer role, and drops the cert next to the key. Use proactively when an SSH connection fails on a missing/expired certificate.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Ziv Gabel"
+  }
+}
