@@ -1,7 +1,7 @@
 ---
 name: vault-ssh
 description: Sign a local SSH key with HashiCorp Vault's SSH CA to mint a short-lived (1 day) SSH certificate. Invoke with /vault-ssh, or use proactively whenever an SSH connection fails because of an expired/missing certificate or a rejected public key.
-allowed-tools: PowerShell, Read, AskUserQuestion, Bash(ssh:*), Bash(ssh-keygen:*)
+allowed-tools: PowerShell, Bash(bash:*), Read, AskUserQuestion, Bash(ssh:*), Bash(ssh-keygen:*)
 ---
 
 # Vault SSH certificate signing
@@ -12,17 +12,30 @@ Some hosts only accept SSH **certificates** signed by the office Vault CA, not r
 
 Credentials are read from **`~/.vaultrc`**, which must exist and contain `VAULT_ADDR` and `VAULT_TOKEN` (shell `export VAR=value` format). Nothing is prompted; secrets never pass through the conversation.
 
-All commands go through one script: `"${SKILL_DIR}/scripts/vault-ssh.ps1"` (PowerShell).
+## Pick the script for the OS
+
+The same logic ships as two scripts with an identical command set, argument shape, output contract, and exit codes. **Choose by platform:**
+
+- **Windows** → PowerShell script:
+  ```
+  powershell -NoProfile -ExecutionPolicy Bypass -File "<SKILL_DIR>/scripts/vault-ssh.ps1" <command> [args]
+  ```
+- **macOS / Linux** → bash script (needs `curl`; uses `jq`/`python3` for JSON if present, else a `sed` fallback):
+  ```
+  bash "<SKILL_DIR>/scripts/vault-ssh.sh" <command> [args]
+  ```
+
+Everything below uses `<command> [args]` generically — substitute the invocation above for the current OS. Flag spelling differs slightly: PowerShell uses `-Role NAME`; bash uses `--role NAME` (likewise `--mount` / `--ttl`). Both honor the `VAULT_SSH_ROLE` / `VAULT_SSH_MOUNT` / `VAULT_SSH_TTL` env vars.
 
 ## Standard flow: `sign`
 
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File "<SKILL_DIR>/scripts/vault-ssh.ps1" sign
+sign
 ```
 
 The script auto-detects the key and role:
-- **Keys**: scans `~/.ssh/*.pub` (ignoring existing `*-cert.pub`). If exactly one, it uses it. If more than one, it emits `MULTIPLE_KEYS` and a list with the conventional **default identity marked `<-- DEFAULT`** (`id_ed25519`, else `id_ecdsa`/`id_rsa`). **Ask the user which key** (AskUserQuestion): present the default as the recommended first option, and make clear they can pick any other listed key instead. Then re-run with the chosen path: `sign <path-to.pub>`. To sign a non-default key, just pass its `.pub` path explicitly (e.g. `sign "C:/Users/ziv/.ssh/id_ed25519_work.pub"`).
-- **Role**: lists roles under `ssh-client-signer2`. If exactly one, it uses it. If more than one, it emits `MULTIPLE_ROLES` — ask the user, then pass `-Role <name>`.
+- **Keys**: scans `~/.ssh/*.pub` (ignoring existing `*-cert.pub`). If exactly one, it uses it. If more than one, it emits `MULTIPLE_KEYS` and a list with the conventional **default identity marked `<-- DEFAULT`** (`id_ed25519`, else `id_ecdsa`/`id_rsa`). **Ask the user which key** (AskUserQuestion): present the default as the recommended first option, and make clear they can pick any other listed key instead. Then re-run with the chosen path: `sign <path-to.pub>`. To sign a non-default key, just pass its `.pub` path explicitly (e.g. `sign ~/.ssh/id_ed25519_work.pub`).
+- **Role**: lists roles under `ssh-client-signer2`. If exactly one, it uses it. If more than one, it emits `MULTIPLE_ROLES` — ask the user, then pass the role (`-Role NAME` on Windows, `--role NAME` on macOS/Linux).
 
 Interpret the output (first token of a line):
 
@@ -31,7 +44,7 @@ Interpret the output (first token of a line):
 | `SIGNED <certPath> ...` | Certificate written next to the key (with validity/principals) | Retry the original SSH operation |
 | `MULTIPLE_KEYS` (exit 3) | Several keys, none specified | Ask the user which key, re-run `sign <path.pub>` |
 | `NO_KEYS` (exit 4) | No `*.pub` under `~/.ssh` | Tell the user; nothing to sign |
-| `NO_ROLE` / `MULTIPLE_ROLES` (exit 5) | Role ambiguous or unlistable | Ask the user, re-run with `-Role <name>` |
+| `NO_ROLE` / `MULTIPLE_ROLES` (exit 5) | Role ambiguous or unlistable | Ask the user, re-run with the role flag (`-Role`/`--role`) |
 | `NO_VAULTRC` (exit 2) | `~/.vaultrc` missing or lacks `VAULT_ADDR`/`VAULT_TOKEN` | Tell the user to create/fix `~/.vaultrc` |
 | `TOKEN_INVALID` (exit 7) | Vault token expired or denied | Tell the user to refresh `VAULT_TOKEN` in `~/.vaultrc` |
 | `VAULT_UNREACHABLE` (exit 6) | Network/TLS error reaching Vault | May need the office VPN — consider the `/vpn` skill, then retry |
@@ -40,7 +53,10 @@ Interpret the output (first token of a line):
 Selecting a specific key and role explicitly:
 
 ```
+# Windows
 powershell -NoProfile -ExecutionPolicy Bypass -File "<SKILL_DIR>/scripts/vault-ssh.ps1" sign "C:/Users/ziv/.ssh/id_ed25519.pub" -Role myrole
+# macOS / Linux
+bash "<SKILL_DIR>/scripts/vault-ssh.sh" sign ~/.ssh/id_ed25519.pub --role myrole
 ```
 
 ## Other commands
@@ -52,7 +68,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "<SKILL_DIR>/scripts/vault-s
 
 - Signing engine mount defaults to `ssh-client-signer2` — override with env `VAULT_SSH_MOUNT`.
 - Certificate TTL defaults to `24h` (1 day) — override with env `VAULT_SSH_TTL` (the role's `max_ttl` still caps it).
-- Role can be forced with `-Role` or env `VAULT_SSH_ROLE`.
+- Role can be forced with `-Role`/`--role` or env `VAULT_SSH_ROLE`.
 - The signed certificate is written as `<key>-cert.pub` in the same directory, so OpenSSH picks it up automatically for the matching `IdentityFile`.
 
 ## Notes (tell the user if asked)
